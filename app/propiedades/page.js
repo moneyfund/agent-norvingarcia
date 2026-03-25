@@ -6,7 +6,6 @@ import PropertyCard from '@/components/propiedades/PropertyCard';
 import PropertyFilters from '@/components/propiedades/PropertyFilters';
 import { mockProperties } from '@/lib/mockData';
 
-
 export default function PropertiesPage() {
   const [filters, setFilters] = useState({ location: '', type: '', maxPrice: '' });
 
@@ -23,16 +22,11 @@ export default function PropertiesPage() {
 
   return (
     <section className="section-shell space-y-8">
-      <h1 className="text-4xl font-semibold">Propiedades</h1>
+      <h1 className="font-serif text-4xl font-semibold">Propiedades premium</h1>
       <PropertyFilters filters={filters} setFilters={setFilters} />
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         {filtered.map((property, index) => (
-          <motion.div
-            key={property.id}
-            initial={{ opacity: 0, y: 25 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: index * 0.08 }}
-          >
+          <motion.div key={property.id} initial={{ opacity: 0, y: 25 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: index * 0.08 }}>
             <PropertyCard property={property} />
           </motion.div>
         ))}

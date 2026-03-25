@@ -4,7 +4,17 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  --bg: #f8fafc;
+  --text: #0f172a;
+  --muted: #e2e8f0;
+  --card: rgba(255, 255, 255, 0.85);
+}
+
+:root[data-theme='dark'] {
+  --bg: #06080f;
+  --text: #f8fafc;
+  --muted: #1e293b;
+  --card: rgba(15, 23, 42, 0.72);
 }
 
 * {
@@ -12,21 +22,23 @@
 }
 
 body {
-  @apply bg-luxury-black text-luxury-white antialiased;
+  background: var(--bg);
+  color: var(--text);
+  @apply antialiased;
 }
 
 .section-shell {
   @apply mx-auto w-full max-w-7xl px-4 py-16 md:px-8;
 }
 
+.glass {
+  background: var(--card);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
 .gold-gradient {
   background: linear-gradient(120deg, #c8a56a, #f0d8a4, #c8a56a);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-}
-
-.glass {
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
 }
