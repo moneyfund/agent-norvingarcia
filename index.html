@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PropNica — Marketplace de Propiedades en Nicaragua</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header>
+    <div class="logo">
+      <span class="logo-icon">🏡</span>
+      <span class="logo-text">PropNica</span>
+    </div>
+    <div class="header-right">
+      <span class="contador" id="contador">0 propiedades</span>
+      <button class="btn-publicar" id="btnAbrir">+ Publicar propiedad</button>
+    </div>
+  </header>
+
+  <div class="filtros">
+    <button class="filtro active" data-tipo="todos">Todos</button>
+    <button class="filtro" data-tipo="venta">Venta</button>
+    <button class="filtro" data-tipo="alquiler">Alquiler</button>
+  </div>
+
+  <div id="map"></div>
+
+  <!-- MODAL -->
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Nueva publicación</h2>
+        <button class="btn-close" id="btnCerrar">✕</button>
+      </div>
+
+      <div class="field">
+        <label>Tipo de operación</label>
+        <div class="tipo-btns">
+          <button class="tipo-btn active" id="btn-venta" onclick="setTipo('venta')">🏷️ Venta</button>
+          <button class="tipo-btn" id="btn-alquiler" onclick="setTipo('alquiler')">🔑 Alquiler</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Ubicación en el mapa <span class="req">*</span></label>
+        <div class="map-hint" id="map-hint">📍 Toca el mapa para seleccionar la ubicación</div>
+        <div id="mini-map"></div>
+      </div>
+
+      <div class="field">
+        <label>Precio en USD <span class="req">*</span></label>
+        <input type="number" id="precio" placeholder="Ej: 85000" />
+      </div>
+
+      <div class="field">
+        <label>Descripción <span class="req">*</span></label>
+        <textarea id="descripcion" placeholder="Casa 3 hab, 2 baños, garaje, patio amplio..."></textarea>
+      </div>
+
+      <div class="field">
+        <label>Teléfono / WhatsApp <span class="req">*</span></label>
+        <input type="tel" id="telefono" placeholder="+505 8888 0000" />
+      </div>
+
+      <div class="field">
+        <label>Foto de la propiedad</label>
+        <label class="upload-area" for="foto">
+          <span id="upload-label">📷 Seleccionar foto</span>
+          <input type="file" id="foto" accept="image/*" />
+        </label>
+        <img id="preview-img" class="preview-img" />
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-cancel" id="btnCancelar">Cancelar</button>
+        <button class="btn-pub" onclick="publicar()">Publicar ✓</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
