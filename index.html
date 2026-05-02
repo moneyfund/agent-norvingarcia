@@ -55,6 +55,8 @@
     #num{font-weight:700;color:var(--lima)}
     .btn-publicar{background:var(--amarillo);color:var(--verde-deeper);border:none;border-radius:50px;padding:9px 18px;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s;box-shadow:0 2px 12px rgba(255,217,61,.4)}
     .btn-publicar:hover{background:#ffca00;transform:translateY(-1px)}
+    .btn-admin{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:50px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;display:none}
+    .btn-admin.visible{display:inline-flex}
     .user-avatar{width:34px;height:34px;border-radius:50%;overflow:hidden;border:2px solid rgba(255,255,255,.4);cursor:pointer;transition:border-color .2s;flex-shrink:0}
     .user-avatar:hover{border-color:var(--lima)}
     .user-avatar img{width:100%;height:100%;object-fit:cover}
@@ -138,6 +140,16 @@
     /* ── TOAST ── */
     .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--verde-deeper);color:#fff;padding:12px 26px;border-radius:50px;font-size:14px;font-weight:500;font-family:'DM Sans',sans-serif;z-index:9999;transition:transform .35s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;box-shadow:var(--shadow-lg)}
     .toast.show{transform:translateX(-50%) translateY(0)}
+    .admin-panel{position:fixed;top:74px;right:16px;z-index:1500;width:340px;background:#fff;border:1px solid var(--borde);border-radius:14px;box-shadow:var(--shadow-lg);display:none;max-height:70vh;overflow:auto}
+    .admin-panel.visible{display:block}
+    .admin-head{padding:12px 14px;border-bottom:1px solid var(--borde);font-weight:700;color:var(--verde-deeper)}
+    .admin-item{padding:12px 14px;border-bottom:1px solid #edf7f1}
+    .admin-item:last-child{border-bottom:none}
+    .admin-actions{display:flex;gap:6px;margin-top:8px}
+    .admin-actions button{border:none;border-radius:20px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer}
+    .admin-ok{background:#d4f5e2;color:#085c2e}
+    .admin-verif{background:#fff8e1;color:#5a4000}
+    .admin-no{background:#ffe3e3;color:#9d1515}
 
     @media(max-width:640px){
       header{padding:0 12px}
@@ -201,6 +213,7 @@
     <div class="header-right">
       <span class="contador"><span id="num">0</span> propiedades</span>
       <button class="btn-publicar" id="btnAbrir">+ Publicar</button>
+      <button class="btn-admin" id="btnAdmin">Admin</button>
       <div class="user-avatar" id="userAvatar" title="Cerrar sesión">
         <img id="userPhoto" src="" alt=""/>
       </div>
@@ -209,6 +222,10 @@
 
   <div id="map"></div>
   <div class="map-badge">🌿 Nicaragua</div>
+  <aside class="admin-panel" id="adminPanel">
+    <div class="admin-head">Pendientes (<span id="pendingCount">0</span>)</div>
+    <div id="adminList"></div>
+  </aside>
 
   <!-- MODAL -->
   <div class="overlay" id="overlay">
@@ -336,6 +353,11 @@ let filtroActivo = 'todos';
 let currentUser = null;
 let userPubCount = 0;
 const LIMITE = 3;
+const ESTADOS_VISIBLES = ['aprobada', 'verificada'];
+const ESTADOS_VALIDOS = ['pendiente', 'aprobada', 'verificada', 'rechazada'];
+const ADMIN_EMAILS = ['admin@nicasa.com.ni'];
+let isAdmin = false;
+let adminPendientes = [];
 
 // ── Auth ───────────────────────────────────────────────────
 auth.onAuthStateChanged(user => {
@@ -347,10 +369,12 @@ auth.onAuthStateChanged(user => {
     if (!map) iniciarMapa();
     escucharPropiedades();
     contarMisPubs();
+    initAdmin();
   } else {
     currentUser = null;
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
+    isAdmin = false;
   }
 });
 
@@ -375,19 +399,24 @@ function iniciarMapa() {
 function escucharPropiedades() {
   db.collection('propiedades').orderBy('creadoEn','desc')
     .onSnapshot(snap => {
-      snap.docChanges().forEach(ch => {
-        const id = ch.doc.id;
-        const p  = { id, ...ch.doc.data() };
-        if (ch.type === 'added') {
+      marcadores = {};
+      map.eachLayer(layer => {
+        if (layer instanceof L.Marker) map.removeLayer(layer);
+      });
+      adminPendientes = [];
+      snap.docs.forEach(doc => {
+        const id = doc.id;
+        const p  = { id, ...doc.data() };
+        const estado = ESTADOS_VALIDOS.includes(p.estado) ? p.estado : 'aprobada';
+        p.estado = estado;
+        if (estado === 'pendiente') adminPendientes.push(p);
+        if (ESTADOS_VISIBLES.includes(estado)) {
           marcadores[id] = { data: p, marker: agregarMarcador(p) };
           aplicarFiltroSolo(id);
         }
-        if (ch.type === 'removed' && marcadores[id]) {
-          map.removeLayer(marcadores[id].marker);
-          delete marcadores[id];
-        }
       });
       document.getElementById('num').textContent = Object.keys(marcadores).length;
+      renderAdminPanel();
     });
 }
 
@@ -424,6 +453,7 @@ function agregarMarcador(p) {
   const verif    = p.plan === 'verificado' ? '<div class="popup-verif">⭐ Propiedad Verificada NICASA</div>' : '';
   const img      = p.fotoURL ? `<img src="${p.fotoURL}" alt="foto"/>` : '';
   const wa       = (p.telefono||'').replace(/\s+/g,'').replace('+','');
+  const waMsg    = encodeURIComponent(`Hola, me interesa tu propiedad en NICASA (${p.tipoProp || 'propiedad'}). ¿Está disponible?`);
   m.bindPopup(`
     <div class="popup-card">
       ${img}${verif}
@@ -432,9 +462,9 @@ function agregarMarcador(p) {
       <div class="popup-tipo">📌 ${p.tipoProp||''}</div>
       <div class="popup-desc">${p.descripcion||''}</div>
       <div class="popup-usuario">👤 ${p.userName||''}</div>
-      <div class="popup-tel"><a href="https://wa.me/${wa}" target="_blank">
+      <div class="popup-tel"><a href="https://wa.me/${wa}?text=${waMsg}" target="_blank">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-        ${p.telefono}
+        Contactar
       </a></div>
     </div>`, { maxWidth: 250 });
   return m;
@@ -552,6 +582,8 @@ document.getElementById('btnPublicar').onclick = async () => {
       lat: selectedLat, lng: selectedLng,
       tipo, plan, precio: Number(precio),
       tipoProp, descripcion, telefono, fotoURL,
+      estado: plan === 'gratis' ? 'pendiente' : 'aprobada',
+      crm: { synced: false, leadId: null, lastSyncAt: null },
       uid: currentUser.uid,
       userName: currentUser.displayName,
       userEmail: currentUser.email,
@@ -561,7 +593,9 @@ document.getElementById('btnPublicar').onclick = async () => {
     if (plan==='gratis') userPubCount++;
     map.setView([selectedLat, selectedLng], 14);
     cerrarModal();
-    toast('🏡 ¡Propiedad publicada! Ya es visible para todos.');
+    toast(plan === 'gratis'
+      ? '⏳ Propiedad enviada a revisión. Estado: pendiente.'
+      : '🏡 ¡Propiedad publicada! Ya es visible para todos.');
   } catch(e) {
     toast('❌ Error: ' + e.message);
   } finally {
@@ -575,6 +609,50 @@ function toast(msg) {
   t.textContent = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 3500);
 }
+
+function initAdmin() {
+  isAdmin = ADMIN_EMAILS.includes((currentUser.email || '').toLowerCase());
+  const btn = document.getElementById('btnAdmin');
+  const panel = document.getElementById('adminPanel');
+  if (!isAdmin) {
+    btn.classList.remove('visible');
+    panel.classList.remove('visible');
+    return;
+  }
+  btn.classList.add('visible');
+  btn.onclick = () => panel.classList.toggle('visible');
+}
+
+function renderAdminPanel() {
+  if (!isAdmin) return;
+  const list = document.getElementById('adminList');
+  document.getElementById('pendingCount').textContent = adminPendientes.length;
+  if (!adminPendientes.length) {
+    list.innerHTML = '<div class="admin-item">No hay propiedades pendientes.</div>';
+    return;
+  }
+  list.innerHTML = adminPendientes.map(p => `
+    <div class="admin-item">
+      <div><strong>${p.tipoProp || 'Propiedad'}</strong> · $${Number(p.precio || 0).toLocaleString()}</div>
+      <div style="font-size:12px;color:#4a7060">${p.userName || 'Sin usuario'} · ${p.tipo}</div>
+      <div class="admin-actions">
+        <button class="admin-ok" onclick="actualizarEstado('${p.id}','aprobada')">Aprobar</button>
+        <button class="admin-verif" onclick="actualizarEstado('${p.id}','verificada')">Verificar</button>
+        <button class="admin-no" onclick="actualizarEstado('${p.id}','rechazada')">Rechazar</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+window.actualizarEstado = async function(id, estado) {
+  if (!isAdmin) return;
+  await db.collection('propiedades').doc(id).update({
+    estado,
+    revisadaEn: firebase.firestore.FieldValue.serverTimestamp(),
+    revisadaPor: currentUser.email || null
+  });
+  toast(`Estado actualizado a ${estado}.`);
+};
 </script>
 </body>
 </html>
