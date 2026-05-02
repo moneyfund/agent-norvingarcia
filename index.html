@@ -1,203 +1,580 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NICASA — Mapa de Propiedades en Nicaragua</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NICASA — Propiedades en Nicaragua</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --verde:#16a85a; --verde-dark:#0d7a40; --verde-deeper:#085c2e;
+      --verde-light:#d4f5e2; --verde-pale:#f0fdf6;
+      --lima:#7ed957; --amarillo:#ffd93d; --naranja:#ff6b35;
+      --azul:#1565c0; --azul-light:#e3f0ff; --dorado:#f5b800;
+      --texto:#0d2b1a; --texto-muted:#4a7060;
+      --borde:#c3e6d0; --fondo:#f4fdf7; --blanco:#fff;
+      --shadow:0 4px 24px rgba(13,122,64,.12);
+      --shadow-lg:0 12px 48px rgba(13,122,64,.2);
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;overflow:hidden}
+    body{font-family:'DM Sans',sans-serif;background:var(--fondo);color:var(--texto);display:flex;flex-direction:column}
+
+    /* ── LOGIN ── */
+    #login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:9000;padding:20px}
+    .login-bg{position:absolute;inset:0;background:linear-gradient(135deg,var(--verde-deeper) 0%,var(--verde-dark) 40%,#1a7a50 70%,#2d9e6a 100%)}
+    .login-bg::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 15% 85%,rgba(126,217,87,.2) 0%,transparent 50%),radial-gradient(circle at 85% 15%,rgba(255,217,61,.12) 0%,transparent 50%)}
+    .login-card{position:relative;background:rgba(255,255,255,.97);border-radius:24px;padding:48px 40px;width:100%;max-width:420px;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.3)}
+    .login-logo{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:28px}
+    .login-logo-mark{width:52px;height:52px;background:linear-gradient(135deg,var(--verde-dark),var(--verde-deeper));border-radius:16px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(13,122,64,.35)}
+    .login-logo-name{font-family:'Playfair Display',serif;font-size:32px;font-weight:900;color:var(--verde-deeper);letter-spacing:5px}
+    .login-title{font-family:'Playfair Display',serif;font-size:28px;font-weight:700;line-height:1.25;margin-bottom:12px}
+    .login-subtitle{font-size:14px;color:var(--texto-muted);line-height:1.6;margin-bottom:32px}
+    .btn-google{width:100%;display:flex;align-items:center;justify-content:center;gap:12px;background:#fff;border:2px solid var(--borde);border-radius:50px;padding:14px 24px;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;color:var(--texto);cursor:pointer;transition:all .2s;margin-bottom:16px;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+    .btn-google:hover{border-color:var(--verde);box-shadow:0 4px 20px rgba(22,168,90,.15);transform:translateY(-1px)}
+    .login-legal{font-size:12px;color:#aaa;line-height:1.5}
+    .login-legal a{color:var(--verde);text-decoration:none}
+
+    /* ── APP ── */
+    #app{display:none;flex-direction:column;height:100%}
+
+    /* ── HEADER ── */
+    header{background:linear-gradient(135deg,var(--verde-deeper) 0%,var(--verde-dark) 60%,var(--verde) 100%);padding:0 20px;height:62px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:100;box-shadow:0 2px 20px rgba(8,92,46,.35);position:relative}
+    .logo{display:flex;align-items:center;gap:10px;z-index:1}
+    .logo-mark{width:38px;height:38px;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);border-radius:10px;display:flex;align-items:center;justify-content:center}
+    .logo-text{display:flex;flex-direction:column;line-height:1}
+    .logo-name{font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:#fff;letter-spacing:3px}
+    .logo-tagline{font-size:9px;color:rgba(255,255,255,.6);letter-spacing:1px;margin-top:2px;text-transform:uppercase}
+    .filtros{display:flex;gap:4px;z-index:1}
+    .filtro{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:50px;padding:5px 14px;font-size:12px;font-family:'DM Sans',sans-serif;font-weight:500;color:rgba(255,255,255,.8);cursor:pointer;transition:all .2s}
+    .filtro:hover{background:rgba(255,255,255,.2);color:#fff}
+    .filtro.active{background:var(--lima);border-color:var(--lima);color:var(--verde-deeper);font-weight:700}
+    .header-right{display:flex;align-items:center;gap:12px;z-index:1}
+    .contador{font-size:12px;color:rgba(255,255,255,.7)}
+    #num{font-weight:700;color:var(--lima)}
+    .btn-publicar{background:var(--amarillo);color:var(--verde-deeper);border:none;border-radius:50px;padding:9px 18px;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s;box-shadow:0 2px 12px rgba(255,217,61,.4)}
+    .btn-publicar:hover{background:#ffca00;transform:translateY(-1px)}
+    .user-avatar{width:34px;height:34px;border-radius:50%;overflow:hidden;border:2px solid rgba(255,255,255,.4);cursor:pointer;transition:border-color .2s;flex-shrink:0}
+    .user-avatar:hover{border-color:var(--lima)}
+    .user-avatar img{width:100%;height:100%;object-fit:cover}
+
+    /* ── MAPA ── */
+    #map{flex:1;width:100%;z-index:1;min-height:0}
+    .map-badge{position:absolute;bottom:32px;left:20px;z-index:500;background:var(--verde-deeper);color:#fff;font-size:12px;font-weight:500;padding:5px 14px;border-radius:50px;pointer-events:none;box-shadow:var(--shadow)}
+
+    /* ── OVERLAY ── */
+    .overlay{position:fixed;inset:0;background:rgba(4,28,14,.65);z-index:2000;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(6px)}
+    .overlay.visible{display:flex}
+
+    /* ── MODAL ── */
+    .modal{background:var(--blanco);border-radius:20px;width:100%;max-width:460px;max-height:94vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow-lg);border:1px solid var(--borde)}
+    .modal-top{background:linear-gradient(135deg,var(--verde-deeper),var(--verde-dark));padding:18px 22px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+    .modal-title{display:flex;align-items:center;gap:10px}
+    .modal-top h2{font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:#fff}
+    .btn-close{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff}
+    .btn-close:hover{background:rgba(255,255,255,.25)}
+    .limite-banner{background:#fff3cd;border-bottom:1px solid #ffc107;padding:10px 18px;font-size:13px;color:#664d03;text-align:center;flex-shrink:0;display:none}
+    .modal-body{padding:18px 22px;overflow-y:auto;flex:1}
+    .modal-footer{padding:14px 22px;border-top:1px solid var(--borde);display:flex;gap:10px;flex-shrink:0;background:var(--verde-pale)}
+
+    /* ── PLAN BTNS ── */
+    .plan-btns{display:flex;gap:10px}
+    .plan-btn{flex:1;padding:12px 10px;border:1.5px solid var(--borde);border-radius:8px;background:var(--verde-pale);cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;flex-direction:column;align-items:center;gap:2px;transition:all .2s}
+    .plan-btn .plan-icon{font-size:20px}
+    .plan-btn .plan-name{font-size:13px;font-weight:700;color:var(--texto)}
+    .plan-btn .plan-desc{font-size:11px;color:var(--texto-muted)}
+    .plan-btn.active{background:var(--verde-light);border-color:var(--verde)}
+    .plan-btn.premium{border-color:var(--dorado)}
+    .plan-btn.premium.active{background:#fff8e1;border-color:var(--dorado);box-shadow:0 0 0 3px rgba(245,184,0,.15)}
+    .verificado-info{background:#fff8e1;border:1px solid var(--dorado);border-radius:8px;padding:14px;font-size:13px;color:#5a4000;line-height:1.6;margin-bottom:16px;display:none}
+    .btn-contacto{display:inline-block;background:var(--dorado);color:#3a2800;padding:8px 16px;border-radius:50px;font-size:13px;font-weight:700;text-decoration:none;margin-top:4px}
+
+    /* ── FIELDS ── */
+    .field{margin-bottom:14px}
+    .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+    .field label{display:block;font-size:11px;font-weight:700;color:var(--texto-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.8px}
+    .req{color:var(--naranja)}
+    .input-wrap{position:relative;display:flex;align-items:center}
+    .input-prefix{position:absolute;left:12px;font-size:14px;color:var(--texto-muted);pointer-events:none}
+    .input-wrap input{padding-left:32px!important}
+    input[type="number"],input[type="tel"],textarea,select{width:100%;border:1.5px solid var(--borde);border-radius:8px;padding:9px 13px;font-size:14px;font-family:'DM Sans',sans-serif;background:var(--verde-pale);color:var(--texto);outline:none;transition:all .2s}
+    input:focus,textarea:focus,select:focus{border-color:var(--verde);background:#fff;box-shadow:0 0 0 3px rgba(22,168,90,.1)}
+    textarea{height:72px;resize:none}
+    select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234a7060' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
+    .tipo-btns{display:flex;gap:8px}
+    .tipo-btn{flex:1;padding:10px;border:1.5px solid var(--borde);border-radius:8px;background:var(--verde-pale);cursor:pointer;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;color:var(--texto-muted);transition:all .2s}
+    .tipo-btn.active{background:var(--verde-light);border-color:var(--verde);color:var(--verde-deeper);font-weight:700}
+    .map-hint{background:var(--verde-pale);border:1.5px dashed var(--borde);border-radius:8px;padding:9px 14px;font-size:13px;color:var(--texto-muted);text-align:center;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .2s}
+    .map-hint.ok{background:var(--verde-light);border-color:var(--verde);color:var(--verde-deeper);font-weight:500}
+    #mini-map{width:100%;height:180px;border-radius:8px;border:1.5px solid var(--borde);overflow:hidden}
+    .upload-area{display:block;border:1.5px dashed var(--borde);border-radius:8px;cursor:pointer;transition:all .2s;overflow:hidden}
+    .upload-area:hover{border-color:var(--verde)}
+    .upload-inner{padding:14px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;color:var(--texto-muted);background:var(--verde-pale)}
+    .upload-area input[type="file"]{display:none}
+    .preview-img{width:100%;height:120px;object-fit:cover;display:none;border-radius:0 0 8px 8px}
+    .btn-cancel{background:transparent;color:var(--texto-muted);border:1.5px solid var(--borde);border-radius:50px;padding:10px 18px;font-size:14px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .2s}
+    .btn-cancel:hover{border-color:var(--verde);color:var(--verde-dark)}
+    .btn-pub{flex:1;background:linear-gradient(135deg,var(--verde),var(--verde-dark));color:#fff;border:none;border-radius:50px;padding:10px 18px;font-size:14px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;box-shadow:0 4px 16px rgba(13,122,64,.3)}
+    .btn-pub:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(13,122,64,.4)}
+    .btn-pub:disabled{opacity:.6;cursor:not-allowed;transform:none}
+
+    /* ── POPUPS ── */
+    .popup-card{font-family:'DM Sans',sans-serif;min-width:200px;max-width:235px}
+    .popup-card img{width:100%;height:120px;object-fit:cover;border-radius:8px;margin-bottom:10px}
+    .popup-verif{background:linear-gradient(90deg,#fff8e1,#fffde7);border:1px solid var(--dorado);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;color:#7a5800;margin-bottom:8px}
+    .popup-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:50px;font-size:11px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px}
+    .badge-venta{background:var(--azul-light);color:var(--azul)}
+    .badge-alquiler{background:#fff3e0;color:#e65100}
+    .popup-precio{font-family:'Playfair Display',serif;font-size:19px;font-weight:700;color:var(--verde-deeper);margin-bottom:3px}
+    .popup-tipo{font-size:11px;color:var(--texto-muted);margin-bottom:6px;font-weight:500}
+    .popup-desc{font-size:12px;color:#555;margin-bottom:8px;line-height:1.5}
+    .popup-usuario{font-size:11px;color:var(--texto-muted);margin-bottom:8px}
+    .popup-tel a{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--verde-dark);text-decoration:none;background:var(--verde-light);padding:6px 12px;border-radius:50px;transition:all .2s}
+    .popup-tel a:hover{background:var(--verde);color:white}
+    .leaflet-popup-content-wrapper{border-radius:14px!important;box-shadow:0 8px 30px rgba(0,0,0,.15)!important;border:1px solid var(--borde)!important;overflow:hidden}
+    .leaflet-popup-content{margin:14px!important}
+
+    /* ── TOAST ── */
+    .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--verde-deeper);color:#fff;padding:12px 26px;border-radius:50px;font-size:14px;font-weight:500;font-family:'DM Sans',sans-serif;z-index:9999;transition:transform .35s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;box-shadow:var(--shadow-lg)}
+    .toast.show{transform:translateX(-50%) translateY(0)}
+
+    @media(max-width:640px){
+      header{padding:0 12px}
+      .logo-tagline,.contador{display:none}
+      .filtro{padding:5px 10px;font-size:11px}
+      .btn-publicar{padding:8px 12px;font-size:12px}
+      .field-row{grid-template-columns:1fr}
+      .login-card{padding:36px 24px}
+      .login-title{font-size:24px}
+    }
+  </style>
 </head>
 <body>
 
-  <!-- ── PANTALLA DE LOGIN ── -->
-  <div id="login-screen">
-    <div class="login-bg"></div>
-    <div class="login-card">
-      <div class="login-logo">
-        <div class="login-logo-mark">
-          <svg width="32" height="32" viewBox="0 0 28 28" fill="none">
-            <path d="M14 3C9.5 3 6 7 6 11.5C6 18 14 26 14 26C14 26 22 18 22 11.5C22 7 18.5 3 14 3Z" fill="white"/>
-            <rect x="10" y="13" width="8" height="7" rx="1" fill="#0d7a40"/>
-            <polygon points="14,9 9,14 19,14" fill="#0d7a40"/>
-          </svg>
-        </div>
-        <span class="login-logo-name">NICASA</span>
+<!-- ── LOGIN ── -->
+<div id="login-screen">
+  <div class="login-bg"></div>
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-mark">
+        <svg width="30" height="30" viewBox="0 0 28 28" fill="none">
+          <path d="M14 3C9.5 3 6 7 6 11.5C6 18 14 26 14 26C14 26 22 18 22 11.5C22 7 18.5 3 14 3Z" fill="white"/>
+          <rect x="10" y="13" width="8" height="7" rx="1" fill="#0d7a40"/>
+          <polygon points="14,9 9,14 19,14" fill="#0d7a40"/>
+        </svg>
       </div>
-      <h1 class="login-title">Encuentra tu<br/>propiedad ideal</h1>
-      <p class="login-subtitle">El marketplace inmobiliario de Nicaragua. Compra, vende y alquila con confianza.</p>
-      <button class="btn-google" id="btnGoogle">
-        <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-        Continuar con Google
-      </button>
-      <p class="login-legal">Al continuar aceptas nuestros <a href="#">Términos de uso</a> y <a href="#">Política de privacidad</a></p>
+      <span class="login-logo-name">NICASA</span>
+    </div>
+    <h1 class="login-title">Encuentra tu<br/>propiedad ideal</h1>
+    <p class="login-subtitle">El marketplace inmobiliario de Nicaragua.<br/>Compra, vende y alquila con confianza.</p>
+    <button class="btn-google" id="btnGoogle">
+      <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Continuar con Google
+    </button>
+    <p class="login-legal">Al continuar aceptas nuestros <a href="#">Términos de uso</a> y <a href="#">Política de privacidad</a></p>
+  </div>
+</div>
+
+<!-- ── APP ── -->
+<div id="app">
+  <header>
+    <div class="logo">
+      <div class="logo-mark">
+        <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
+          <path d="M14 3C9.5 3 6 7 6 11.5C6 18 14 26 14 26C14 26 22 18 22 11.5C22 7 18.5 3 14 3Z" fill="white"/>
+          <rect x="10" y="13" width="8" height="7" rx="1" fill="#0d7a40"/>
+          <polygon points="14,9 9,14 19,14" fill="#0d7a40"/>
+        </svg>
+      </div>
+      <div class="logo-text">
+        <span class="logo-name">NICASA</span>
+        <span class="logo-tagline">propiedades en Nicaragua</span>
+      </div>
+    </div>
+    <nav class="filtros">
+      <button class="filtro active" data-tipo="todos">Todos</button>
+      <button class="filtro" data-tipo="venta">Venta</button>
+      <button class="filtro" data-tipo="alquiler">Alquiler</button>
+      <button class="filtro" data-tipo="verificado">⭐ Verificados</button>
+    </nav>
+    <div class="header-right">
+      <span class="contador"><span id="num">0</span> propiedades</span>
+      <button class="btn-publicar" id="btnAbrir">+ Publicar</button>
+      <div class="user-avatar" id="userAvatar" title="Cerrar sesión">
+        <img id="userPhoto" src="" alt=""/>
+      </div>
+    </div>
+  </header>
+
+  <div id="map"></div>
+  <div class="map-badge">🌿 Nicaragua</div>
+
+  <!-- MODAL -->
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <div class="modal-top">
+        <div class="modal-title"><span>🏡</span><h2>Nueva publicación</h2></div>
+        <button class="btn-close" id="btnCerrar">✕</button>
+      </div>
+      <div class="limite-banner" id="limiteBanner">
+        ⚠️ Alcanzaste el límite de <strong>3 publicaciones gratuitas</strong>. Contáctanos para plan verificado.
+      </div>
+      <div class="modal-body" id="modalBody">
+        <div class="field">
+          <label>Plan de publicación</label>
+          <div class="plan-btns">
+            <button class="plan-btn active" id="btn-gratis" onclick="setPlan('gratis')">
+              <span class="plan-icon">🆓</span>
+              <span class="plan-name">Gratuito</span>
+              <span class="plan-desc">Límite 3 pubs.</span>
+            </button>
+            <button class="plan-btn premium" id="btn-verificado" onclick="setPlan('verificado')">
+              <span class="plan-icon">⭐</span>
+              <span class="plan-name">Verificado</span>
+              <span class="plan-desc">Con agente NICASA</span>
+            </button>
+          </div>
+        </div>
+        <div class="verificado-info" id="verificadoInfo">
+          <strong>¿Cómo funciona?</strong><br/>
+          Un agente NICASA revisará tu documentación y gestionará tu publicación con máxima visibilidad. Se firma contrato de corretaje (hasta 5% en venta según ley nicaragüense).<br/><br/>
+          <a href="mailto:contacto@nicasa.com.ni" class="btn-contacto">📩 Contactar agente NICASA</a>
+        </div>
+        <div class="field">
+          <label>Tipo de operación</label>
+          <div class="tipo-btns">
+            <button class="tipo-btn active" id="btn-venta" onclick="setTipo('venta')">🏷️ Venta</button>
+            <button class="tipo-btn" id="btn-alquiler" onclick="setTipo('alquiler')">🔑 Alquiler</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Ubicación en el mapa <span class="req">*</span></label>
+          <div class="map-hint" id="map-hint">📍 Toca el mapa para marcar la propiedad</div>
+          <div id="mini-map"></div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Precio USD <span class="req">*</span></label>
+            <div class="input-wrap">
+              <span class="input-prefix">$</span>
+              <input type="number" id="precio" placeholder="85000"/>
+            </div>
+          </div>
+          <div class="field">
+            <label>Tipo de propiedad</label>
+            <select id="tipo-prop">
+              <option value="Casa">🏠 Casa</option>
+              <option value="Apartamento">🏢 Apartamento</option>
+              <option value="Terreno">🌿 Terreno</option>
+              <option value="Local">🏪 Local comercial</option>
+              <option value="Finca">🌾 Finca</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Descripción <span class="req">*</span></label>
+          <textarea id="descripcion" placeholder="Casa 3 habitaciones, 2 baños, garaje..."></textarea>
+        </div>
+        <div class="field">
+          <label>Teléfono / WhatsApp <span class="req">*</span></label>
+          <div class="input-wrap">
+            <span class="input-prefix">📱</span>
+            <input type="tel" id="telefono" placeholder="+505 8888 0000"/>
+          </div>
+        </div>
+        <div class="field">
+          <label>Foto de la propiedad</label>
+          <label class="upload-area" for="foto">
+            <div class="upload-inner" id="upload-label">📷 Seleccionar foto</div>
+            <input type="file" id="foto" accept="image/*"/>
+          </label>
+          <img id="preview-img" class="preview-img"/>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" id="btnCancelar">Cancelar</button>
+        <button class="btn-pub" id="btnPublicar">Publicar propiedad →</button>
+      </div>
     </div>
   </div>
+</div>
 
-  <!-- ── APP PRINCIPAL ── -->
-  <div id="app" style="display:none;">
+<div class="toast" id="toast"></div>
 
-    <header>
-      <div class="logo">
-        <div class="logo-mark">
-          <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
-            <path d="M14 3C9.5 3 6 7 6 11.5C6 18 14 26 14 26C14 26 22 18 22 11.5C22 7 18.5 3 14 3Z" fill="white"/>
-            <rect x="10" y="13" width="8" height="7" rx="1" fill="#0d7a40"/>
-            <polygon points="14,9 9,14 19,14" fill="#0d7a40"/>
-          </svg>
-        </div>
-        <div class="logo-text">
-          <span class="logo-name">NICASA</span>
-          <span class="logo-tagline">propiedades en Nicaragua</span>
-        </div>
-      </div>
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-      <nav class="filtros">
-        <button class="filtro active" data-tipo="todos">Todos</button>
-        <button class="filtro" data-tipo="venta">Venta</button>
-        <button class="filtro" data-tipo="alquiler">Alquiler</button>
-        <button class="filtro" data-tipo="verificado">⭐ Verificados</button>
-      </nav>
+<!-- Firebase (compat = sin módulos, funciona en GitHub Pages) -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 
-      <div class="header-right">
-        <span class="contador"><span id="num">0</span> propiedades</span>
-        <button class="btn-publicar" id="btnAbrir">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Publicar
-        </button>
-        <div class="user-avatar" id="userAvatar" title="Cerrar sesión">
-          <img id="userPhoto" src="" alt=""/>
-        </div>
-      </div>
-    </header>
+<script>
+// ── Firebase config ────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyDQ86GFuKwiD-nenQAaNkMXD2AB9KLA_5M",
+  authDomain: "nicasa-6a4fa.firebaseapp.com",
+  projectId: "nicasa-6a4fa",
+  storageBucket: "nicasa-6a4fa.firebasestorage.app",
+  messagingSenderId: "159871097953",
+  appId: "1:159871097953:web:64155a28b56f575a615e20"
+};
+firebase.initializeApp(firebaseConfig);
+const auth    = firebase.auth();
+const db      = firebase.firestore();
+const storage = firebase.storage();
 
-    <div id="map"></div>
-    <div class="map-badge">🌿 Nicaragua</div>
+// ── Estado ─────────────────────────────────────────────────
+let map, miniMap, miniMarker;
+let selectedLat = null, selectedLng = null;
+let tipo = 'venta', plan = 'gratis';
+let fotoFile = null;
+let marcadores = {};
+let filtroActivo = 'todos';
+let currentUser = null;
+let userPubCount = 0;
+const LIMITE = 3;
 
-    <!-- ── MODAL PUBLICAR ── -->
-    <div class="overlay" id="overlay">
-      <div class="modal">
-        <div class="modal-top">
-          <div class="modal-title">
-            <span>🏡</span>
-            <h2>Nueva publicación</h2>
-          </div>
-          <button class="btn-close" id="btnCerrar">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
+// ── Auth ───────────────────────────────────────────────────
+auth.onAuthStateChanged(user => {
+  if (user) {
+    currentUser = user;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('userPhoto').src = user.photoURL || '';
+    if (!map) iniciarMapa();
+    escucharPropiedades();
+    contarMisPubs();
+  } else {
+    currentUser = null;
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+  }
+});
 
-        <!-- limite gratuito -->
-        <div class="limite-banner" id="limiteBanner" style="display:none">
-          ⚠️ Has alcanzado el límite de <strong>3 publicaciones gratuitas</strong>. Contáctanos para publicar como verificado.
-        </div>
+document.getElementById('btnGoogle').onclick = () => {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).catch(e => toast('❌ ' + e.message));
+};
 
-        <div class="modal-body" id="modalBody">
+document.getElementById('userAvatar').onclick = () => {
+  if (confirm('¿Cerrar sesión?')) auth.signOut();
+};
 
-          <!-- Tipo verificado / gratuito -->
-          <div class="field">
-            <label>Plan de publicación</label>
-            <div class="plan-btns">
-              <button class="plan-btn active" id="btn-gratis" onclick="setPlan('gratis')">
-                <span class="plan-icon">🆓</span>
-                <span class="plan-name">Gratuito</span>
-                <span class="plan-desc">Límite 3 pubs.</span>
-              </button>
-              <button class="plan-btn premium" id="btn-verificado" onclick="setPlan('verificado')">
-                <span class="plan-icon">⭐</span>
-                <span class="plan-name">Verificado</span>
-                <span class="plan-desc">Con agente NICASA</span>
-              </button>
-            </div>
-          </div>
+// ── Mapa ───────────────────────────────────────────────────
+function iniciarMapa() {
+  map = L.map('map').setView([12.8654, -85.2072], 7);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap', maxZoom: 19
+  }).addTo(map);
+}
 
-          <!-- Info verificado -->
-          <div class="verificado-info" id="verificadoInfo" style="display:none">
-            <strong>¿Cómo funciona lo verificado?</strong><br/>
-            Un agente NICASA revisará tu documentación, tomará fotos profesionales y gestionará la publicación. Se firma contrato de corretaje (hasta 5% en venta según ley). Tu propiedad tendrá máxima visibilidad y notificaciones push a todos los usuarios.
-            <br/><br/>
-            <a href="mailto:contacto@nicasa.com.ni" class="btn-contacto">📩 Contactar agente NICASA</a>
-          </div>
+// ── Firestore tiempo real ──────────────────────────────────
+function escucharPropiedades() {
+  db.collection('propiedades').orderBy('creadoEn','desc')
+    .onSnapshot(snap => {
+      snap.docChanges().forEach(ch => {
+        const id = ch.doc.id;
+        const p  = { id, ...ch.doc.data() };
+        if (ch.type === 'added') {
+          marcadores[id] = { data: p, marker: agregarMarcador(p) };
+          aplicarFiltroSolo(id);
+        }
+        if (ch.type === 'removed' && marcadores[id]) {
+          map.removeLayer(marcadores[id].marker);
+          delete marcadores[id];
+        }
+      });
+      document.getElementById('num').textContent = Object.keys(marcadores).length;
+    });
+}
 
-          <div class="field">
-            <label>Tipo de operación</label>
-            <div class="tipo-btns">
-              <button class="tipo-btn active" id="btn-venta" onclick="setTipo('venta')">🏷️ Venta</button>
-              <button class="tipo-btn" id="btn-alquiler" onclick="setTipo('alquiler')">🔑 Alquiler</button>
-            </div>
-          </div>
+async function contarMisPubs() {
+  const snap = await db.collection('propiedades')
+    .where('uid','==', currentUser.uid)
+    .where('plan','==','gratis').get();
+  userPubCount = snap.size;
+}
 
-          <div class="field">
-            <label>Ubicación en el mapa <span class="req">*</span></label>
-            <div class="map-hint" id="map-hint"><span>📍</span> Toca el mapa para marcar la propiedad</div>
-            <div id="mini-map"></div>
-          </div>
+// ── Icono ──────────────────────────────────────────────────
+function crearIcono(p) {
+  const isVenta = p.tipo === 'venta';
+  const isVerif = p.plan === 'verificado';
+  const bg      = isVenta ? '#1565c0' : '#e65100';
+  const label   = isVenta ? 'VENTA' : 'ALQUILER';
+  const precio  = Number(p.precio).toLocaleString();
+  const star    = isVerif ? '⭐ ' : '';
+  const border  = isVerif ? '2.5px solid #ffd93d' : '2.5px solid #fff';
+  const sh      = isVerif ? '0 3px 14px rgba(255,217,61,.5),0 2px 6px rgba(0,0,0,.2)' : '0 3px 10px rgba(0,0,0,.22)';
+  return L.divIcon({
+    className: '',
+    html: `<div style="background:${bg};color:#fff;border-radius:50px;padding:5px 13px;font-size:11px;font-weight:700;font-family:'DM Sans',sans-serif;white-space:nowrap;border:${border};box-shadow:${sh};letter-spacing:.4px">${star}${label} $${precio}</div>`,
+    iconAnchor: [60, 14]
+  });
+}
 
-          <div class="field-row">
-            <div class="field">
-              <label>Precio USD <span class="req">*</span></label>
-              <div class="input-wrap">
-                <span class="input-prefix">$</span>
-                <input type="number" id="precio" placeholder="85,000" />
-              </div>
-            </div>
-            <div class="field">
-              <label>Tipo de propiedad</label>
-              <select id="tipo-prop">
-                <option value="Casa">🏠 Casa</option>
-                <option value="Apartamento">🏢 Apartamento</option>
-                <option value="Terreno">🌿 Terreno</option>
-                <option value="Local">🏪 Local comercial</option>
-                <option value="Finca">🌾 Finca</option>
-              </select>
-            </div>
-          </div>
+// ── Marcador ───────────────────────────────────────────────
+function agregarMarcador(p) {
+  const m = L.marker([p.lat, p.lng], { icon: crearIcono(p) }).addTo(map);
+  const unidad   = p.tipo === 'alquiler' ? '/mes' : '';
+  const bClass   = p.tipo === 'venta' ? 'badge-venta' : 'badge-alquiler';
+  const bLabel   = p.tipo === 'venta' ? '🏷️ Venta' : '🔑 Alquiler';
+  const verif    = p.plan === 'verificado' ? '<div class="popup-verif">⭐ Propiedad Verificada NICASA</div>' : '';
+  const img      = p.fotoURL ? `<img src="${p.fotoURL}" alt="foto"/>` : '';
+  const wa       = (p.telefono||'').replace(/\s+/g,'').replace('+','');
+  m.bindPopup(`
+    <div class="popup-card">
+      ${img}${verif}
+      <span class="popup-badge ${bClass}">${bLabel}</span>
+      <div class="popup-precio">$${Number(p.precio).toLocaleString()}<span style="font-size:13px;font-weight:400;color:#888">${unidad}</span></div>
+      <div class="popup-tipo">📌 ${p.tipoProp||''}</div>
+      <div class="popup-desc">${p.descripcion||''}</div>
+      <div class="popup-usuario">👤 ${p.userName||''}</div>
+      <div class="popup-tel"><a href="https://wa.me/${wa}" target="_blank">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        ${p.telefono}
+      </a></div>
+    </div>`, { maxWidth: 250 });
+  return m;
+}
 
-          <div class="field">
-            <label>Descripción <span class="req">*</span></label>
-            <textarea id="descripcion" placeholder="Casa 3 habitaciones, 2 baños, garaje, patio amplio..."></textarea>
-          </div>
+// ── Filtros ────────────────────────────────────────────────
+document.querySelectorAll('.filtro').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filtro').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filtroActivo = btn.dataset.tipo;
+    Object.keys(marcadores).forEach(aplicarFiltroSolo);
+  });
+});
 
-          <div class="field">
-            <label>Teléfono / WhatsApp <span class="req">*</span></label>
-            <div class="input-wrap">
-              <span class="input-prefix">📱</span>
-              <input type="tel" id="telefono" placeholder="+505 8888 0000" />
-            </div>
-          </div>
+function aplicarFiltroSolo(id) {
+  const { data, marker } = marcadores[id];
+  const ok = filtroActivo === 'todos'
+    || (filtroActivo === 'verificado' && data.plan === 'verificado')
+    || (filtroActivo !== 'verificado' && data.tipo === filtroActivo);
+  ok ? map.addLayer(marker) : map.removeLayer(marker);
+}
 
-          <div class="field">
-            <label>Foto de la propiedad</label>
-            <label class="upload-area" for="foto">
-              <div class="upload-inner" id="upload-label">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
-                <span>Seleccionar foto</span>
-              </div>
-              <input type="file" id="foto" accept="image/*" />
-            </label>
-            <img id="preview-img" class="preview-img" />
-          </div>
+// ── Modal ──────────────────────────────────────────────────
+document.getElementById('btnAbrir').onclick = abrirModal;
+document.getElementById('btnCerrar').onclick = cerrarModal;
+document.getElementById('btnCancelar').onclick = cerrarModal;
+document.getElementById('overlay').onclick = e => { if (e.target.id==='overlay') cerrarModal(); };
 
-        </div>
+document.getElementById('foto').onchange = function() {
+  const f = this.files[0]; if (!f) return;
+  fotoFile = f;
+  const r = new FileReader();
+  r.onload = e => {
+    document.getElementById('preview-img').src = e.target.result;
+    document.getElementById('preview-img').style.display = 'block';
+    document.getElementById('upload-label').textContent = '✅ Foto lista';
+  };
+  r.readAsDataURL(f);
+};
 
-        <div class="modal-footer">
-          <button class="btn-cancel" id="btnCancelar">Cancelar</button>
-          <button class="btn-pub" id="btnPublicar" onclick="publicar()">
-            Publicar propiedad
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-          </button>
-        </div>
-      </div>
-    </div>
+function abrirModal() {
+  const bloqueado = plan === 'gratis' && userPubCount >= LIMITE;
+  document.getElementById('limiteBanner').style.display = bloqueado ? 'block' : 'none';
+  document.getElementById('modalBody').style.opacity = bloqueado ? '.4' : '1';
+  document.getElementById('modalBody').style.pointerEvents = bloqueado ? 'none' : 'auto';
+  document.getElementById('btnPublicar').disabled = bloqueado;
+  document.getElementById('overlay').classList.add('visible');
+  setTimeout(() => {
+    if (!miniMap) {
+      miniMap = L.map('mini-map', { zoomControl: false, attributionControl: false }).setView([12.8654, -85.2072], 6);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(miniMap);
+      miniMap.on('click', e => {
+        selectedLat = e.latlng.lat; selectedLng = e.latlng.lng;
+        if (miniMarker) miniMap.removeLayer(miniMarker);
+        miniMarker = L.marker([selectedLat, selectedLng]).addTo(miniMap);
+        document.getElementById('map-hint').textContent = '✅ Ubicación seleccionada';
+        document.getElementById('map-hint').className = 'map-hint ok';
+      });
+    } else { miniMap.invalidateSize(); }
+  }, 120);
+}
 
-  </div><!-- /app -->
+function cerrarModal() {
+  document.getElementById('overlay').classList.remove('visible');
+  selectedLat = null; selectedLng = null; fotoFile = null;
+  if (miniMarker) { miniMap.removeLayer(miniMarker); miniMarker = null; }
+  document.getElementById('map-hint').textContent = '📍 Toca el mapa para marcar la propiedad';
+  document.getElementById('map-hint').className = 'map-hint';
+  ['precio','descripcion','telefono'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('foto').value = '';
+  document.getElementById('preview-img').style.display = 'none';
+  document.getElementById('upload-label').textContent = '📷 Seleccionar foto';
+  document.getElementById('limiteBanner').style.display = 'none';
+  document.getElementById('modalBody').style.opacity = '1';
+  document.getElementById('modalBody').style.pointerEvents = 'auto';
+  document.getElementById('btnPublicar').disabled = false;
+  setTipo('venta'); setPlan('gratis');
+}
 
-  <!-- TOAST -->
-  <div class="toast" id="toast"></div>
+function setTipo(t) {
+  tipo = t;
+  document.getElementById('btn-venta').className   = 'tipo-btn'+(t==='venta'?' active':'');
+  document.getElementById('btn-alquiler').className = 'tipo-btn'+(t==='alquiler'?' active':'');
+}
 
-  <!-- Firebase -->
-  <script type="module" src="firebase-init.js"></script>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script type="module" src="app.js"></script>
+function setPlan(p) {
+  plan = p;
+  document.getElementById('btn-gratis').className    = 'plan-btn'+(p==='gratis'?' active':'');
+  document.getElementById('btn-verificado').className = 'plan-btn premium'+(p==='verificado'?' active':'');
+  document.getElementById('verificadoInfo').style.display = p==='verificado'?'block':'none';
+}
+
+// ── Publicar ───────────────────────────────────────────────
+document.getElementById('btnPublicar').onclick = async () => {
+  if (!selectedLat||!selectedLng) { toast('⚠️ Selecciona la ubicación en el mapa'); return; }
+  const precio      = document.getElementById('precio').value.trim();
+  const descripcion = document.getElementById('descripcion').value.trim();
+  const telefono    = document.getElementById('telefono').value.trim();
+  const tipoProp    = document.getElementById('tipo-prop').value;
+  if (!precio||!descripcion||!telefono) { toast('⚠️ Completa todos los campos requeridos'); return; }
+  if (plan==='gratis'&&userPubCount>=LIMITE) { toast('⚠️ Límite gratuito alcanzado'); return; }
+
+  const btn = document.getElementById('btnPublicar');
+  btn.textContent = 'Publicando...'; btn.disabled = true;
+
+  try {
+    let fotoURL = null;
+    if (fotoFile) {
+      const ref  = storage.ref(`propiedades/${currentUser.uid}/${Date.now()}_${fotoFile.name}`);
+      const snap = await ref.put(fotoFile);
+      fotoURL    = await snap.ref.getDownloadURL();
+    }
+    await db.collection('propiedades').add({
+      lat: selectedLat, lng: selectedLng,
+      tipo, plan, precio: Number(precio),
+      tipoProp, descripcion, telefono, fotoURL,
+      uid: currentUser.uid,
+      userName: currentUser.displayName,
+      userEmail: currentUser.email,
+      userPhoto: currentUser.photoURL,
+      creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    if (plan==='gratis') userPubCount++;
+    map.setView([selectedLat, selectedLng], 14);
+    cerrarModal();
+    toast('🏡 ¡Propiedad publicada! Ya es visible para todos.');
+  } catch(e) {
+    toast('❌ Error: ' + e.message);
+  } finally {
+    btn.textContent = 'Publicar propiedad →'; btn.disabled = false;
+  }
+};
+
+// ── Toast ──────────────────────────────────────────────────
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+</script>
 </body>
 </html>
